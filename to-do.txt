@@ -1,3 +1,1 @@
-# fazer os calculos dos atributos
-
-# criar a relashioship entre modelos
+# fazer os calculos dos atributos do component

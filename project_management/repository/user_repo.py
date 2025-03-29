@@ -2,10 +2,10 @@ from fastapi import HTTPException, status
 from sqlmodel import select
 from ..database import SessionDep
 from .. import models
-from ..hashing import Hash
+from ..utils import hashing
 
 def create_user(user: models.UserCreate, db: SessionDep):
-    hashed_password = Hash.get_password_hash(user.password)
+    hashed_password = hashing.Hash.get_password_hash(user.password)
     user.password = hashed_password
     db_user = models.User.model_validate(user)
     db.add(db_user)
@@ -30,7 +30,7 @@ def update_user(id: int, user: models.UserUpdate, db: SessionDep):
     if not db_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User not found")
     if user.password not in (None, ""):
-        hashed_password = Hash.get_password_hash(user.password)
+        hashed_password = hashing.Hash.get_password_hash(user.password)
         user.password = hashed_password
     user_data = user.model_dump(exclude_unset=True)
     db_user.sqlmodel_update(user_data)

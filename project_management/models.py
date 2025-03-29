@@ -1,7 +1,7 @@
-from sqlmodel import Field, SQLModel, Column
+from sqlmodel import Field, SQLModel, Column, Relationship
 from sqlalchemy import DateTime, func
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 # User
 class UserBase(SQLModel): # Modelo de entrada
@@ -25,6 +25,11 @@ class UserUpdate(UserBase):
     password: str | None = Field(default=None)
 
 
+class ProjectComponentLink(SQLModel):
+    project_id: int | None = Field(default=None, foreign_key="component.id", primary_key=True)
+    component_id: int | None = Field(default=None, foreign_key="project.id", primary_key=True)
+    component_quantity: int | None
+
 # Project
 class ProjectBase(SQLModel):
     name: str = Field(index=True)
@@ -34,7 +39,8 @@ class Project(ProjectBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime, onupdate=func.now()))
-    #components: relationship
+
+    components: list["Component"] = Relationship(back_populates="projects", link_model=ProjectComponentLink) # N:N
 
 class ProjectUpdate(ProjectBase):
     name: str | None = Field(default=None)
@@ -52,6 +58,8 @@ class ComponentBase(SQLModel):
 class Component(ComponentBase, table=True):
     id: int | None = Field(default=None, primary_key=True)  # Chave primária autoincremento
 
+    projects: list[Project] = Relationship(back_populates="components", link_model=ProjectComponentLink) # N:N
+
 class ComponentUpdate(ComponentBase):
     code: str | None = Field(default=None)
     brand: str | None = Field(default=None)
@@ -59,3 +67,5 @@ class ComponentUpdate(ComponentBase):
     amperage_rating: int | None = Field(default=None)
     voltage: int | None = Field(default=None)
     watts: int | None = Field(default=None)
+
+
