@@ -1,0 +1,7 @@
+fastapi[standard]
+uvicorn
+sqlmodel
+passlib[bcrypt]
+pandas
+openpyxl
+pyjwt

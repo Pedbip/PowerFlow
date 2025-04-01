@@ -1,14 +1,13 @@
-from typing import Optional
 import math
 
 
 # Conversion Functions
-def amperage_to_wattage(amps, volts, pf: Optional[float] = None) -> float:
+def amperage_to_wattage(amps, volts, pf: float | None = None) -> float:
     """Convert amperage to wattage."""
     return amps * volts * pf if pf is not None else amps * volts
 
 
-def wattage_to_amperage(watts, volts, pf: Optional[float] = None) -> float:
+def wattage_to_amperage(watts, volts, pf: float | None = None) -> float:
     """Convert wattage to amperage."""
     return watts / (volts * pf) if pf is not None else watts / volts
 
@@ -23,12 +22,12 @@ def kilowatt_to_wattage(kilowatts) -> float:
     return kilowatts * 1000
 
 
-def kilowatt_to_amperage(kilowatts, volts, pf: Optional[float] = None) -> float:
+def kilowatt_to_amperage(kilowatts, volts, pf: float | None = None) -> float:
     """Convert kilowatt to amperage."""
     return kilowatts * 1000 / (volts * pf) if pf is not None else kilowatts * 1000 / volts
 
 
-def amperage_to_kilowatt(amps, volts, pf: Optional[float] = None) -> float:
+def amperage_to_kilowatt(amps, volts, pf: float | None = None) -> float:
     """Convert amperage to kilowatt."""
     return amps * volts * pf / 1000 if pf is not None else amps * volts / 1000
 

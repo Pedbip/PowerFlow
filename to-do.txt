@@ -1,1 +1,7 @@
 # fazer os calculos dos atributos do component
+
+# exportar dados para excel
+
+# adicionar todos os erros
+
+# fazer a adiçao de componentes ao projeto

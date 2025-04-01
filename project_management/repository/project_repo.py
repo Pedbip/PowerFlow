@@ -1,14 +1,16 @@
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Depends
 from sqlmodel import select
 from ..database import SessionDep
 from .. import models
+from ..utils import oauth2
 
-def create_project(project: models.ProjectBase, db: SessionDep):
-    db_project = models.Project.model_validate(project)
+def create_project(project: models.ProjectBase, db: SessionDep, current_user: models.User):
+    db_project = models.Project(name=project.name, user_id=current_user.id)
     db.add(db_project)
     db.commit()
     db.refresh(db_project)
     return db_project
+
 
 def get_all_projects(db: SessionDep):
     projects = db.exec(select(models.Project)).all()
@@ -16,11 +18,13 @@ def get_all_projects(db: SessionDep):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="empty list, please add an item")
     return projects
 
+
 def get_project(id: int, db: SessionDep):
     project = db.exec(select(models.Project).where(models.Project.id == id)).first()
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Project not found")
     return project
+
 
 def update_project(id: int, project: models.ProjectUpdate, db: SessionDep):
     db_project = db.get(models.Project, id)
@@ -32,6 +36,7 @@ def update_project(id: int, project: models.ProjectUpdate, db: SessionDep):
     db.commit()
     db.refresh(db_project)
     return db_project
+
 
 def delete_project(id: int, db: SessionDep):
     db_project = db.get(models.Project, id)
