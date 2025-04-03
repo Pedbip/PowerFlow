@@ -4,4 +4,4 @@
 
 # adicionar todos os erros
 
-# fazer a adiçao de componentes ao projeto
+# permitir adicionar e deletar a quantidade de componentes

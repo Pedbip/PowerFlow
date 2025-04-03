@@ -48,6 +48,8 @@ class ProjectComponentLink(SQLModel, table=True):
 class ProjectBase(SQLModel):
     name: str = Field(index=True)
     
+class ProjectList(ProjectBase):
+    id: int
 
 class Project(ProjectBase, table=True):
     id: int | None = Field(default=None, primary_key=True)
@@ -59,8 +61,15 @@ class Project(ProjectBase, table=True):
     component_links: list[ProjectComponentLink] = Relationship(back_populates="project")
 
     @property
+    def components(self) -> list["ComponentPublic"]:
+        return [ComponentPublic(code=link.component.code, brand=link.component.brand, name=link.component.name) for link in self.component_links]  # Retorna os componentes diretamente
+    @property
     def total_amperage(self) -> int:
         return sum(link.total_amperage for link in self.component_links)
+
+
+class ProjectPublic(ProjectBase):
+    component_links: list["ComponentPublic"] = Field(default_factory=list)
 
 
 class ProjectUpdate(ProjectBase):
@@ -83,6 +92,12 @@ class Component(ComponentBase, table=True):
 
     user: User = Relationship(back_populates="component")
     project_links: list[ProjectComponentLink] = Relationship(back_populates="component") 
+
+
+class ComponentPublic(SQLModel):
+    code: str
+    brand: str
+    name: str
 
 
 class ComponentUpdate(ComponentBase):

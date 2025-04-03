@@ -3,8 +3,6 @@ from sqlmodel import select
 from ..database import SessionDep
 from .. import models
 from ..utils import hashing
-import logging
-logging.basicConfig(level=logging.DEBUG)
 
 def create_user(user: models.UserCreate, db: SessionDep):
     hashed_password = hashing.Hash.get_password_hash(user.password)
