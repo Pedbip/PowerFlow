@@ -5,6 +5,15 @@ from .. import models
 from ..utils import hashing
 
 def create_user(user: models.UserCreate, db: SessionDep):
+    
+    existing_user = db.exec(select(models.User).where(models.User.username == user.username)).first()
+    if existing_user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists")
+    
+    existing_email = db.exec(select(models.User).where(models.User.email == user.email)).first()
+    if existing_email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Email already exists")
+    
     hashed_password = hashing.Hash.get_password_hash(user.password)
     user.password = hashed_password
     db_user = models.User.model_validate(user)
@@ -17,7 +26,8 @@ def create_user(user: models.UserCreate, db: SessionDep):
 def get_all_users(db: SessionDep):
     users = db.exec(select(models.User)).all()
     if not users:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="empty list, please add an item")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="no users found")
+   
     return users
 
 

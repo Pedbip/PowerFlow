@@ -47,7 +47,7 @@ class ProjectComponentLink(SQLModel, table=True):
 
 # Project
 class ProjectBase(SQLModel):
-    name: str = Field(index=True)
+    name: str = Field(index=True, min_length=1, max_length=100)  # Garantir que o nome não seja vazio e tenha um tamanho máximo
     
 class ProjectList(ProjectBase):
     id: int
@@ -79,7 +79,7 @@ class ProjectUpdate(ProjectBase):
 
 # Component
 class ComponentBase(SQLModel):
-    code: str = Field(unique=True, nullable=False, index=True)  # Garante que seja único
+    code: str = Field(unique=True, nullable=False, index=True, min_length=1, max_length=50)  # Garantir que o código não seja vazio
     brand: str = Field(index=True)
     name: str = Field(index=True)
     amperage_rating: int | None = None

@@ -4,7 +4,20 @@ from ..database import SessionDep
 from .. import models
 
 def create_component(component: models.ComponentBase, db: SessionDep, current_user: models.User):
-    db_component = models.Component(code=component.code, brand=component.brand, name=component.name, amperage_rating=component.amperage_rating, voltage=component.voltage, watts=component.watts, user_id=current_user.id)
+    
+    existing_component = db.exec(select(models.Component).where(models.Component.code == component.code)).first()
+    if existing_component:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Component code already exists")
+    
+    db_component = models.Component(
+        code=component.code,
+        brand=component.brand,
+        name=component.name,
+        amperage_rating=component.amperage_rating,
+        voltage=component.voltage,
+        watts=component.watts,
+        user_id=current_user.id
+    )
     db.add(db_component)
     db.commit()
     db.refresh(db_component)
@@ -41,6 +54,12 @@ def delete_component(id: str, db: SessionDep):
     db_component = db.get(models.Component, id)
     if not db_component:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Component not found")
+    # Check if the component is linked to any project
+    if db_component.project_links:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete a component that is linked to a project"
+        )
     db.delete(db_component)
     db.commit()
     return {"message": "Component Deleted"}

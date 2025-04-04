@@ -1,7 +1,6 @@
-# Nao permitir que os atributos do component sejam 0
-
-# criar components e testar a criacao da planilha
-
 # adicionar todos os erros
 
 # permitir adicionar e deletar a quantidade de componentes
+
+# testar testes unitarios
+

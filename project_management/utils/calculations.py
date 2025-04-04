@@ -200,3 +200,5 @@ def motor_power_in_watts_triphasic(current, voltage, power_factor) -> float:
     """Calculate motor power in Watts for triphasic systems."""
     return current * voltage * power_factor * 1.732 if voltage != 0 else 0.0
 
+
+
