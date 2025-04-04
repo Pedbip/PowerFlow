@@ -1,3 +1,4 @@
+from pydantic import model_validator
 from sqlmodel import Field, SQLModel, Column, Relationship
 from sqlalchemy import DateTime, func
 from datetime import datetime
@@ -81,9 +82,27 @@ class ComponentBase(SQLModel):
     code: str = Field(unique=True, nullable=False, index=True)  # Garante que seja único
     brand: str = Field(index=True)
     name: str = Field(index=True)
-    amperage_rating: int
-    voltage: int
-    watts: int
+    amperage_rating: int | None = None
+    voltage: int | None = None
+    watts: int | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def auto_complete_missing(cls, values):
+        amper, volts, watts = values.get("amperage_rating"), values.get("voltage"), values.get("watts")
+        filled = [x for x in (amper, volts, watts) if x is not None]
+
+        if len(filled) < 2:
+            raise ValueError("Enter at least two attributes between amperage, voltage, and watts.")
+
+        if amper is None:
+            values["amperage_rating"] = watts // volts
+        elif volts is None:
+            values["voltage"] = watts // amper
+        elif watts is None:
+            values["watts"] = amper * volts
+
+        return values
 
 
 class Component(ComponentBase, table=True):

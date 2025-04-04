@@ -1,6 +1,6 @@
-# fazer os calculos dos atributos do component
+# Nao permitir que os atributos do component sejam 0
 
-# exportar dados para excel
+# criar components e testar a criacao da planilha
 
 # adicionar todos os erros
 

@@ -1,10 +1,14 @@
-from fastapi import APIRouter, status, Depends
+from fastapi import APIRouter, status, Depends, Response
 from ..database import SessionDep
 from .. import models
 from ..repository import project_repo
 from ..utils import oauth2
 
 router = APIRouter(tags=["Projects"], prefix="/project", responses={404: {"description": "Not found"}}) 
+
+@router.get("/export/{project_id}", response_class=Response, status_code=status.HTTP_200_OK)
+def export_projects_to_xlsx(project_id: int, db: SessionDep):
+    return project_repo.export_to_xlsx(project_id, db)
 
 @router.post("/", response_model=models.ProjectPublic, status_code=status.HTTP_201_CREATED)
 def create_project(project: models.ProjectBase, db: SessionDep, current_user: models.User = Depends(oauth2.get_current_user)):
@@ -39,3 +43,5 @@ def add_component_to_project(project_id: int, component_id: int, db: SessionDep)
 @router.delete("/{project_id}/{component_id}", response_model=models.ProjectPublic)
 def remove_component_from_project(project_id: int, component_id: int, db: SessionDep):
     return project_repo.remove_component_from_project(project_id, component_id, db)
+
+
