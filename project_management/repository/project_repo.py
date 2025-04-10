@@ -1,27 +1,23 @@
-from ast import Import
-from fastapi import HTTPException, status, Depends
+from fastapi import HTTPException, status
 from sqlmodel import select
-from ..database import SessionDep
-from .. import models
-from ..utils import oauth2
+from ..utils.database import SessionDep
+from ..utils import models
 import pandas as pd
 from fastapi.responses import JSONResponse
+from sqlalchemy import or_
 
-def create_project(project: models.ProjectBase, db: SessionDep, current_user: models.User):
-    # Check for duplicate project name for the same user
-    existing_project = db.exec(
-        select(models.Project).where(models.Project.name == project.name).where(models.Project.user_id == current_user.id)
-    ).first()
+def create_project(request: models.ProjectBase, db: SessionDep, current_user: models.User):
+
+    existing_project = db.exec(select(models.Project).where(models.Project.name == request.name).where(models.Project.user_id == current_user.id)).first()
+    
     if existing_project:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A project with this name already exists for the current user"
-        )
-    db_project = models.Project(name=project.name, user_id=current_user.id)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="a project with this name already exists for the current user")
+    
+    db_project = models.Project(name=request.name, user_id=current_user.id)
     db.add(db_project)
     db.commit()
     db.refresh(db_project)
-    return models.ProjectPublic(name=db_project.name, component_links=db_project.components)
+    return models.ProjectPublic(name=db_project.name, component_links=db_project.components, latest_modification=db_project.updated_at if db_project.updated_at else db_project.created_at)
 
 
 def get_all_projects(db: SessionDep):
@@ -34,71 +30,88 @@ def get_all_projects(db: SessionDep):
 def get_project(id: int, db: SessionDep):
     project = db.exec(select(models.Project).where(models.Project.id == id)).first()
     if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Project not found")
-    return models.ProjectPublic(name=project.name, component_links=project.components)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"project not found")
+    return models.ProjectPublic(name=project.name, component_links=project.components, latest_modification=project.updated_at if project.updated_at else project.created_at)
 
 
-def update_project(id: int, project: models.ProjectUpdate, db: SessionDep):
+def update_project(id: int, request: models.ProjectUpdate, db: SessionDep):
     db_project = db.get(models.Project, id)
     if not db_project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Project not found")
-    project_data = project.model_dump(exclude_unset=True)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"project not found")
+    project_data = request.model_dump(exclude_unset=True)
     db_project.sqlmodel_update(project_data)
     db.add(db_project)
     db.commit()
     db.refresh(db_project)
-    return db_project
+    return models.ProjectPublic(name=db_project.name, component_links=db_project.components, latest_modification=db_project.updated_at if db_project.updated_at else db_project.created_at)
 
 
 def delete_project(id: int, db: SessionDep):
     db_project = db.get(models.Project, id)
     if not db_project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Project not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"project not found")
     db.delete(db_project)
     db.commit()
-    return {"message": "Project Deleted"}
+    return JSONResponse(content={"message": "Project deleted."})
     
 
-def add_component_to_project(project_id: int, component_id: int, db: SessionDep):
+def add_component_to_project(request: models.ComponentLink, project_id: int, db: SessionDep):
     project = db.exec(select(models.Project)
                       .where(models.Project.id == project_id)).first()
     if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
-    component = db.exec(select(models.Component)
-                        .where(models.Component.id == component_id)).first()
-    if not component:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Component not found")
-
-    existing_link = db.exec(select(models.ProjectComponentLink).where(models.ProjectComponentLink.project_id == project_id)
-        .where(models.ProjectComponentLink.component_id == component_id)).first()
-    if existing_link:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Component is already linked to the project")
-    
-    project_component_link = models.ProjectComponentLink(project=project, component=component)
-    db.add(project_component_link)
-    db.commit()
-    db.refresh(project)
-    return models.ProjectPublic(name=project.name, component_links=project.components)
-
-
-def remove_component_from_project(project_id: int, component_id: int, db: SessionDep):
-    project = db.exec(select(models.Project).where(models.Project.id == project_id)).one()
-    if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="project not found")
-    
-    component = db.exec(select(models.Component).where(models.Component.id == component_id)).one()
+    component = db.exec(select(models.Component)
+                        .where(or_(models.Component.id == request.id, models.Component.code == request.code))).first()
     if not component:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="component not found")
 
-    project_component_link = db.exec(select(models.ProjectComponentLink).where(models.ProjectComponentLink.project_id == project.id)
-                                     .filter(models.ProjectComponentLink.component_id == component.id)).one()
+    existing_link = db.exec(select(models.ProjectComponentLink).where(models.ProjectComponentLink.project_id == project_id)
+        .where(models.ProjectComponentLink.component_id == component.id)).first()
+    
+    if existing_link:
+        if request.quantity <= 0:  
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="quantity must be greater than 0")
+        existing_link.component_quantity += request.quantity
+        db.add(existing_link)
+        db.commit()
+        db.refresh(existing_link)
+        db.refresh(project)
+    else:
+        project_component_link = models.ProjectComponentLink(project=project, component=component, component_quantity=request.quantity)
+        db.add(project_component_link)
+        db.commit()
+        db.refresh(project_component_link)
+        db.refresh(project)
+
+    return models.ProjectPublic(name=project.name, component_links=project.components, latest_modification=project.updated_at if project.updated_at else project.created_at)
+
+
+def remove_component_from_project(request: models.ComponentLink, project_id: int, db: SessionDep):
+    project = db.exec(select(models.Project).where(models.Project.id == project_id)).first()
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="project not found")
+    
+    component = db.exec(select(models.Component).where(or_(models.Component.code == request.code, models.Component.id == request.id))).first()
+    if not component:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="component not found")
+
+    project_component_link = db.exec(select(models.ProjectComponentLink).where(models.ProjectComponentLink.project_id == project.id).filter(models.ProjectComponentLink.component_id == component.id)).one()
     if not project_component_link:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="item not found")
     
-    db.delete(project_component_link)
+    if request.quantity > project_component_link.component_quantity:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Quantity is greater than the current quantity")
+    
+    if request.quantity == project_component_link.component_quantity:
+        db.delete(project_component_link)
+    else:
+        project_component_link.component_quantity -= request.quantity
+        db.add(project_component_link)
+
     db.commit()
     db.refresh(project)
-    return models.ProjectPublic(name=project.name, component_links=project.components)
+    
+    return models.ProjectPublic(name=project.name, component_links=project.components, latest_modification=project.updated_at if project.updated_at else project.created_at)
 
 
 def export_to_xlsx(project_id: int, db: SessionDep):
@@ -106,9 +119,7 @@ def export_to_xlsx(project_id: int, db: SessionDep):
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="project not found")
     
-    # Obtenha os componentes associados ao projeto
-    project_components = db.exec(select(models.Component).join(models.ProjectComponentLink)
-                                 .where(models.ProjectComponentLink.project_id == project_id)).all()
+    project_components = db.exec(select(models.Component).join(models.ProjectComponentLink).where(models.ProjectComponentLink.project_id == project_id)).all()
     
     if not project_components:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="project has no components")
@@ -125,7 +136,7 @@ def export_to_xlsx(project_id: int, db: SessionDep):
         }
         for component in project_components
     ])
-    # Criar um dicionário com os totais na última linha
+    # Add the total row
     total_row = {
         "id": "TOTAL",
         "code": "",

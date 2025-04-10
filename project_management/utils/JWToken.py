@@ -3,8 +3,8 @@ import jwt
 from sqlmodel import select
 from fastapi import HTTPException, status
 from pydantic import BaseModel
-from ..database import SessionDep
-from .. import models
+from .database import SessionDep
+from . import models
 from .hashing import Hash
 
 

@@ -43,11 +43,12 @@ class ProjectComponentLink(SQLModel, table=True):
     @property
     def total_amperage(self) -> int:
         return self.component.amperage_rating * self.component_quantity
+    
 
 
 # Project
 class ProjectBase(SQLModel):
-    name: str = Field(index=True, min_length=1, max_length=100)  # Garantir que o nome não seja vazio e tenha um tamanho máximo
+    name: str = Field(index=True, min_length=1, max_length=100)
     
 class ProjectList(ProjectBase):
     id: int
@@ -63,13 +64,16 @@ class Project(ProjectBase, table=True):
 
     @property
     def components(self) -> list["ComponentPublic"]:
-        return [ComponentPublic(code=link.component.code, brand=link.component.brand, name=link.component.name) for link in self.component_links]  # Retorna os componentes diretamente
+        return [ComponentPublic(code=link.component.code, brand=link.component.brand, name=link.component.name, quantity=link.component_quantity) for link in self.component_links]  # Retorna os componentes diretamente
     @property
     def total_amperage(self) -> int:
         return sum(link.total_amperage for link in self.component_links)
 
+    
+
 
 class ProjectPublic(ProjectBase):
+    latest_modification: datetime
     component_links: list["ComponentPublic"] = Field(default_factory=list)
 
 
@@ -79,7 +83,7 @@ class ProjectUpdate(ProjectBase):
 
 # Component
 class ComponentBase(SQLModel):
-    code: str = Field(unique=True, nullable=False, index=True, min_length=1, max_length=50)  # Garantir que o código não seja vazio
+    code: str = Field(unique=True, nullable=False, index=True, min_length=1, max_length=50)
     brand: str = Field(index=True)
     name: str = Field(index=True)
     amperage_rating: int | None = None
@@ -117,6 +121,8 @@ class ComponentPublic(SQLModel):
     code: str
     brand: str
     name: str
+    quantity: int
+      
 
 
 class ComponentUpdate(ComponentBase):
@@ -128,3 +134,7 @@ class ComponentUpdate(ComponentBase):
     watts: int | None = Field(default=None)
 
 
+class ComponentLink(SQLModel):
+    id: int | None = Field(default=None)
+    code: str | None = Field(default=None)
+    quantity: int = Field(default=1)

@@ -4,8 +4,8 @@ from jwt.exceptions import InvalidTokenError, ExpiredSignatureError
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, HTTPException, status
 from . import JWToken
-from ..database import SessionDep
-from .. import models
+from .database import SessionDep
+from . import models
 from sqlmodel import select
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")

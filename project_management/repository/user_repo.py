@@ -1,22 +1,21 @@
 from fastapi import HTTPException, status
 from sqlmodel import select
-from ..database import SessionDep
-from .. import models
-from ..utils import hashing
+from ..utils.database import SessionDep
+from ..utils import hashing, models
 
-def create_user(user: models.UserCreate, db: SessionDep):
+def create_user(request: models.UserCreate, db: SessionDep):
     
-    existing_user = db.exec(select(models.User).where(models.User.username == user.username)).first()
+    existing_user = db.exec(select(models.User).where(models.User.username == request.username)).first()
     if existing_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists")
     
-    existing_email = db.exec(select(models.User).where(models.User.email == user.email)).first()
+    existing_email = db.exec(select(models.User).where(models.User.email == request.email)).first()
     if existing_email:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,detail="Email already exists")
     
-    hashed_password = hashing.Hash.get_password_hash(user.password)
-    user.password = hashed_password
-    db_user = models.User.model_validate(user)
+    hashed_password = hashing.Hash.get_password_hash(request.password)
+    request.password = hashed_password
+    db_user = models.User.model_validate(request)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -38,14 +37,14 @@ def get_user(id: int, db: SessionDep):
     return user
 
 
-def update_user(id: int, user: models.UserUpdate, db: SessionDep):
+def update_user(id: int, request: models.UserUpdate, db: SessionDep):
     db_user = db.get(models.User, id)
     if not db_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User not found")
-    if user.password not in (None, ""):
-        hashed_password = hashing.Hash.get_password_hash(user.password)
-        user.password = hashed_password
-    user_data = user.model_dump(exclude_unset=True)
+    if request.password not in (None, ""):
+        hashed_password = hashing.Hash.get_password_hash(request.password)
+        request.password = hashed_password
+    user_data = request.model_dump(exclude_unset=True)
     db_user.sqlmodel_update(user_data)
     db.add(db_user)
     db.commit()

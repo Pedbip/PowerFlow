@@ -1,21 +1,21 @@
 from fastapi import HTTPException, status
 from sqlmodel import select
-from ..database import SessionDep
-from .. import models
+from ..utils.database import SessionDep
+from ..utils import models
 
-def create_component(component: models.ComponentBase, db: SessionDep, current_user: models.User):
+def create_component(request: models.ComponentBase, db: SessionDep, current_user: models.User):
     
-    existing_component = db.exec(select(models.Component).where(models.Component.code == component.code)).first()
+    existing_component = db.exec(select(models.Component).where(models.Component.code == request.code)).first()
     if existing_component:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Component code already exists")
     
     db_component = models.Component(
-        code=component.code,
-        brand=component.brand,
-        name=component.name,
-        amperage_rating=component.amperage_rating,
-        voltage=component.voltage,
-        watts=component.watts,
+        code=request.code,
+        brand=request.brand,
+        name=request.name,
+        amperage_rating=request.amperage_rating,
+        voltage=request.voltage,
+        watts=request.watts,
         user_id=current_user.id
     )
     db.add(db_component)
@@ -38,11 +38,11 @@ def get_component(id: str, db: SessionDep):
     return component
 
 
-def update_component(id: str, component: models.ComponentUpdate, db: SessionDep):
+def update_component(id: str, request: models.ComponentUpdate, db: SessionDep):
     db_component = db.get(models.Component, id)
     if not db_component:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Component not found")
-    component_data = component.model_dump(exclude_unset=True)
+    component_data = request.model_dump(exclude_unset=True)
     db_component.sqlmodel_update(component_data)
     db.add(db_component)
     db.commit()
@@ -54,12 +54,10 @@ def delete_component(id: str, db: SessionDep):
     db_component = db.get(models.Component, id)
     if not db_component:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Component not found")
-    # Check if the component is linked to any project
+    
     if db_component.project_links:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot delete a component that is linked to a project"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete a component that is linked to a project")
+    
     db.delete(db_component)
     db.commit()
     return {"message": "Component Deleted"}

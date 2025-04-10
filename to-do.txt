@@ -1,3 +1,1 @@
-# permitir adicionar e deletar a quantidade de componentes
-
 # testes unitarios
