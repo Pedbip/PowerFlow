@@ -115,37 +115,41 @@ def remove_component_from_project(request: models.ComponentLink, project_id: int
 
 
 def export_to_xlsx(project_id: int, db: SessionDep):
-    project = db.exec(select(models.Project).where(models.Project.id == project_id)).one()
+    project = db.exec(select(models.Project).where(models.Project.id == project_id)).one_or_none()
     if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="project not found")
-    
-    project_components = db.exec(select(models.Component).join(models.ProjectComponentLink).where(models.ProjectComponentLink.project_id == project_id)).all()
-    
-    if not project_components:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="project has no components")
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+
+    project_component_links = db.exec(select(models.ProjectComponentLink).join(models.Component).where(models.ProjectComponentLink.project_id == project_id)).all()
+
+    if not project_component_links:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project has no components")
+
+
     project_components_df = pd.DataFrame([
-        {   
-            "id": component.id,
-            "code": component.code,
-            "brand": component.brand,
-            "name": component.name,
-            "amperage_rating": component.amperage_rating,
-            "voltage": component.voltage,
-            "watts": component.watts
+        {
+            "id": link.component.id,
+            "code": link.component.code,
+            "brand": link.component.brand,
+            "name": link.component.name,
+            "amperage rating": link.component.amperage_rating,
+            "voltage": link.component.voltage,
+            "watts": link.component.watts,
+            "quantity": link.component_quantity
         }
-        for component in project_components
+        for link in project_component_links
     ])
-    # Add the total row
+
+
     total_row = {
         "id": "TOTAL",
         "code": "",
         "brand": "",
         "name": "",
-        "amperage_rating": "",
+        "amperage rating": "",
         "voltage": "",
         "watts": "",
-        "quantity": sum(link.component_quantity for link in project.component_links),
+        "quantity": sum(link.component_quantity for link in project_component_links),  
         "total amperage": project.total_amperage
     }
 
